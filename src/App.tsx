@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect, useRef, useSyncExternalStore } from "react"
 import { profile, skills, education, experience, projects } from "./data/resume"
+import type { ProjectCategory } from "./data/resume"
 import { companyLogos, projectLogos } from "./data/logos"
 import img1 from "./imports/image-5.png"
 import img2 from "./imports/image-1.png"
 import img3 from "./imports/image-2.png"
-import img4 from "./imports/image-3.png"
+import img4 from "./imports/image-3.webp"
 import img5 from "./imports/image-4.png"
 
 // ─── Token map ────────────────────────────────────────────────────────────────
@@ -16,37 +17,170 @@ const TC: Record<string, string> = {
   blue: "#4cc9f0",
 }
 
+// Readable text steps (mirrors --text-* in index.css)
+const INK = "#b8cfe0"
+const BODY = "#9bb5ce"
+const MUTED = "#7f9cba"
+const FAINT = "#6a8caa"
+
+// ─── Hooks ────────────────────────────────────────────────────────────────────
+const reducedMotionQuery = "(prefers-reduced-motion: reduce)"
+
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia(reducedMotionQuery)
+      mq.addEventListener("change", cb)
+      return () => mq.removeEventListener("change", cb)
+    },
+    () => window.matchMedia(reducedMotionQuery).matches,
+    () => false,
+  )
+}
+
+// The last section (in document order) crossing the viewport's centre line
+function useActiveSection(ids: string[]) {
+  const [active, setActive] = useState<string | null>(null)
+  useEffect(() => {
+    const visible = new Set<string>()
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) =>
+          e.isIntersecting ? visible.add(e.target.id) : visible.delete(e.target.id),
+        )
+        const current = [...ids].reverse().find((id) => visible.has(id))
+        setActive(current ?? null)
+      },
+      { rootMargin: "-45% 0px -50% 0px" },
+    )
+    ids.forEach((id) => {
+      const el = document.getElementById(id)
+      if (el) io.observe(el)
+    })
+    return () => io.disconnect()
+  }, [ids])
+  return active
+}
+
+function useScrollProgress() {
+  const [progress, setProgress] = useState(0)
+  useEffect(() => {
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      setProgress(max > 0 ? Math.min(1, window.scrollY / max) : 0)
+    }
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+    update()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    window.addEventListener("resize", onScroll)
+    return () => {
+      window.removeEventListener("scroll", onScroll)
+      window.removeEventListener("resize", onScroll)
+      cancelAnimationFrame(frame)
+    }
+  }, [])
+  return progress
+}
+
+function useEscape(onEscape: () => void, enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onEscape()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onEscape, enabled])
+}
+
+// ─── Pixel icons ──────────────────────────────────────────────────────────────
+function PixelIcon({ rows, size = 12 }: { rows: string[]; size?: number }) {
+  const w = rows[0].length
+  const h = rows.length
+  return (
+    <svg
+      width={size}
+      height={(size * h) / w}
+      viewBox={`0 0 ${w} ${h}`}
+      shapeRendering="crispEdges"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      {rows.flatMap((row, y) =>
+        [...row].map((ch, x) =>
+          ch === "#" ? (
+            <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="currentColor" />
+          ) : null,
+        ),
+      )}
+    </svg>
+  )
+}
+
+const ICON_NOTE = [
+  "...######",
+  "...######",
+  "...#....#",
+  "...#....#",
+  "...#....#",
+  ".###..###",
+  "####.####",
+  "####.####",
+  ".##...##.",
+]
+
+const ICON_MENU = [
+  "#########",
+  ".........",
+  ".........",
+  "#########",
+  ".........",
+  ".........",
+  "#########",
+]
+
+const ICON_CLOSE = [
+  "#.....#",
+  ".#...#.",
+  "..#.#..",
+  "...#...",
+  "..#.#..",
+  ".#...#.",
+  "#.....#",
+]
+
+const ICON_TROPHY = [
+  "#########",
+  "#.#####.#",
+  "#.#####.#",
+  ".#######.",
+  "..#####..",
+  "...###...",
+  "....#....",
+  "...###...",
+  "..#####..",
+]
+
 // ─── Pixel frame ──────────────────────────────────────────────────────────────
 function PixelFrame({
   children,
   color = "cyan",
   className = "",
-  onClick,
-  onKeyDown,
-  role,
-  tabIndex,
   style,
-  "aria-expanded": ariaExpanded,
 }: {
   children: React.ReactNode
   color?: string
   className?: string
-  onClick?: () => void
-  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void
-  role?: string
-  tabIndex?: number
   style?: React.CSSProperties
-  "aria-expanded"?: boolean
 }) {
   const c = TC[color] ?? color
   return (
     <div
       className={`relative bg-[#0c1220] ${className}`}
-      onClick={onClick}
-      onKeyDown={onKeyDown}
-      role={role}
-      tabIndex={tabIndex}
-      aria-expanded={ariaExpanded}
       style={{
         border: `2px solid ${c}`,
         boxShadow: `0 0 8px ${c}33, inset 0 0 8px rgba(0,0,0,0.5)`,
@@ -80,12 +214,10 @@ function PixelFrame({
 // ─── Section background ───────────────────────────────────────────────────────
 function SectionBg({
   src,
-  alt,
   opacity = 0.38,
   eager = false,
 }: {
   src: string
-  alt: string
   opacity?: number
   eager?: boolean
 }) {
@@ -93,11 +225,13 @@ function SectionBg({
     <div
       className="absolute inset-0 overflow-hidden pointer-events-none"
       style={{ zIndex: 0 }}
+      aria-hidden="true"
     >
       <img
         src={src}
-        alt={alt}
+        alt=""
         loading={eager ? "eager" : "lazy"}
+        decoding="async"
         className="w-full h-full object-cover"
         style={{
           imageRendering: "pixelated",
@@ -138,78 +272,100 @@ function SectionHeader({
   label,
   sub,
   color = "cyan",
+  action,
 }: {
   label: string
   sub?: string
   color?: string
+  action?: React.ReactNode
 }) {
   const c = TC[color] ?? color
   return (
     <div className="mb-10">
       <div className="flex items-center gap-4">
-        <span
-          className="font-pixel text-xs whitespace-nowrap"
+        <h2
+          className="font-pixel text-sm md:text-base whitespace-nowrap"
           style={{ color: c, textShadow: `0 0 8px ${c}` }}
         >
           &gt;&gt; {label}
-        </span>
+        </h2>
         <div
           className="flex-1 h-px"
           style={{ background: `linear-gradient(90deg, ${c}, transparent)` }}
         />
+        {action}
       </div>
       {sub && (
-        <div
-          className="font-mono text-[10px] mt-1 ml-5"
-          style={{ color: `${c}77`, letterSpacing: "0.15em" }}
+        <p
+          className="font-mono text-xs mt-2 ml-7"
+          style={{ color: MUTED, letterSpacing: "0.12em" }}
         >
           {sub}
-        </div>
+        </p>
       )}
     </div>
   )
 }
 
-// ─── Typewriter ────────────────────────────────────────────────────────────────
-function Typewriter({ lines }: { lines: string[] }) {
-  const [displayed, setDisplayed] = useState("")
-  const [lineIdx, setLineIdx] = useState(0)
-  const [charIdx, setCharIdx] = useState(0)
-  const [done, setDone] = useState(false)
+// ─── Terminal (typewriter with skip + reserved height) ─────────────────────────
+function Terminal({ lines }: { lines: string[] }) {
+  const full = lines.join("\n")
+  const reduceMotion = usePrefersReducedMotion()
+  const [count, setCount] = useState(0)
+  const [skipped, setSkipped] = useState(false)
+  const done = skipped || reduceMotion || count >= full.length
 
   useEffect(() => {
     if (done) return
-    const current = lines[lineIdx]
-    if (charIdx < current.length) {
-      const t = setTimeout(() => {
-        setDisplayed((p) => p + current[charIdx])
-        setCharIdx((c) => c + 1)
-      }, 36)
-      return () => clearTimeout(t)
-    } else if (lineIdx < lines.length - 1) {
-      const t = setTimeout(() => {
-        setDisplayed((p) => p + "\n")
-        setLineIdx((l) => l + 1)
-        setCharIdx(0)
-      }, 250)
-      return () => clearTimeout(t)
-    } else {
-      setDone(true)
-    }
-  }, [charIdx, lineIdx, lines, done])
+    const t = setTimeout(
+      () => setCount((c) => c + 1),
+      full[count] === "\n" ? 220 : 22,
+    )
+    return () => clearTimeout(t)
+  }, [count, done, full])
+
+  const preClass = "font-mono text-[13px] leading-6 sm:text-sm sm:leading-7 md:text-[15px] whitespace-pre-wrap"
 
   return (
-    <pre
-      className="font-mono text-sm leading-7 whitespace-pre-wrap"
-      style={{ color: "#b8cfe0" }}
-    >
-      {displayed}
-      {!done && (
-        <span className="blink" style={{ color: "#00f5d4" }}>
-          ▋
+    <PixelFrame color="cyan" className="p-5">
+      <div
+        className="flex items-center gap-2 pb-3 mb-3"
+        style={{ borderBottom: "1px solid rgba(0,245,212,0.2)" }}
+      >
+        <span className="w-2.5 h-2.5 rounded-full bg-[#f72585]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#ffb700]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#00f5d4]" />
+        <span className="font-mono text-xs ml-2 truncate" style={{ color: MUTED }}>
+          <span className="hidden sm:inline">terminal — </span>alireza@portfolio
         </span>
-      )}
-    </pre>
+        {!done && (
+          <button
+            type="button"
+            onClick={() => setSkipped(true)}
+            className="ml-auto shrink-0 whitespace-nowrap font-mono text-xs px-2 py-0.5 transition-colors hover:text-[#00f5d4]"
+            style={{ color: MUTED, border: "1px solid #2a4060" }}
+          >
+            skip ▸▸
+          </button>
+        )}
+      </div>
+
+      {/* Full text for assistive tech; the typed copy is decorative */}
+      <p className="sr-only">{lines.map((l) => l.replace(/^> /, "")).join(". ")}</p>
+
+      {/* The invisible copy reserves the final height so nothing below jumps */}
+      <div className="grid" aria-hidden="true">
+        <pre className={`${preClass} invisible [grid-area:1/1]`}>{full}</pre>
+        <pre className={`${preClass} [grid-area:1/1]`} style={{ color: INK }}>
+          {done ? full : full.slice(0, count)}
+          {!done && (
+            <span className="blink" style={{ color: "#00f5d4" }}>
+              ▋
+            </span>
+          )}
+        </pre>
+      </div>
+    </PixelFrame>
   )
 }
 
@@ -219,206 +375,235 @@ const SPOTIFY_PLAYLIST_ID = import.meta.env.VITE_SPOTIFY_PLAYLIST_ID
 function MusicWidget() {
   const [open, setOpen] = useState(false)
   const [hasOpened, setHasOpened] = useState(false)
+  useEscape(() => setOpen(false), open)
+
+  if (!SPOTIFY_PLAYLIST_ID) return null
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 68,
-        left: 16,
-        zIndex: 60,
-      }}
-    >
-      {/* Circular FAB */}
-      <button
-        onClick={() => {
-          setOpen((o) => !o)
-          setHasOpened(true)
-        }}
-        title={open ? "Hide player" : "Open music player"}
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: "50%",
-          border: "2px solid #00f5d4",
-          background: "rgba(0,245,212,0.15)",
-          color: "#00f5d4",
-          fontSize: 18,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          boxShadow:
-            "0 0 14px rgba(0,245,212,0.5), 0 0 30px rgba(0,245,212,0.2)",
-          transition: "all 0.2s",
-          backdropFilter: "blur(8px)",
-          animation: "pulse-glow 2s ease-in-out infinite",
-        }}
-      >
-        ♪
-      </button>
-
-      {/* Spotify player panel — slides out to the right of the button */}
+    <>
+      {/* Spotify player panel: drops below the nav bar */}
       <div
+        id="music-panel"
+        role="region"
+        aria-label="Music player"
+        className="fixed right-4 top-[72px] z-60"
         style={{
-          position: "absolute",
-          top: 0,
-          left: 50,
-          width: 300,
+          width: "min(300px, calc(100vw - 32px))",
           border: "2px solid rgba(0,245,212,0.4)",
-          boxShadow: "0 0 20px rgba(0,245,212,0.25)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.5), 0 0 20px rgba(0,245,212,0.2)",
           background: "#0c1220",
           overflow: "hidden",
           visibility: open ? "visible" : "hidden",
           opacity: open ? 1 : 0,
+          transform: open ? "none" : "translateY(-8px)",
           pointerEvents: open ? "auto" : "none",
-          transition: "opacity 0.2s ease, visibility 0.2s ease",
+          transition: "opacity 0.2s ease, transform 0.2s ease, visibility 0.2s",
         }}
       >
-        {/* Pixel-frame top bar */}
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "6px 10px",
-            borderBottom: "1px solid rgba(0,245,212,0.2)",
-          }}
+          className="flex items-center justify-between px-3 py-2"
+          style={{ borderBottom: "1px solid rgba(0,245,212,0.2)" }}
         >
           <span
-            className="font-pixel"
-            style={{
-              fontSize: 7,
-              color: "#00f5d4",
-              textShadow: "0 0 6px #00f5d4",
-            }}
+            className="font-pixel text-[9px]"
+            style={{ color: "#00f5d4", textShadow: "0 0 6px #00f5d4" }}
           >
             ◈ NOW PLAYING
           </span>
           <button
+            type="button"
             onClick={() => setOpen(false)}
-            style={{
-              color: "#4a6a8a",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 12,
-            }}
+            aria-label="Close music player"
+            className="w-7 h-7 flex items-center justify-center hover:text-[#00f5d4]"
+            style={{ color: MUTED }}
           >
-            ✕
+            <PixelIcon rows={ICON_CLOSE} size={11} />
           </button>
         </div>
         {hasOpened && (
           <iframe
             title="Spotify music player"
             src={`https://open.spotify.com/embed/playlist/${SPOTIFY_PLAYLIST_ID}?utm_source=generator&theme=0`}
-            width="300"
+            width="100%"
             height="152"
             frameBorder="0"
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
             style={{ display: "block" }}
           />
         )}
       </div>
-    </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((o) => !o)
+          setHasOpened(true)
+        }}
+        aria-label={open ? "Hide music player" : "Open music player"}
+        aria-expanded={open}
+        aria-controls="music-panel"
+        className={`flex items-center justify-center w-10 h-10 transition-colors hover:bg-[#00f5d41a] ${hasOpened ? "" : "pulse-glow"}`}
+        style={{
+          border: `1px solid ${open ? "#00f5d4" : "rgba(0,245,212,0.4)"}`,
+          background: open ? "rgba(0,245,212,0.12)" : "transparent",
+          color: "#00f5d4",
+        }}
+      >
+        <PixelIcon rows={ICON_NOTE} size={16} />
+      </button>
+    </>
   )
 }
 
 // ─── Navbar ────────────────────────────────────────────────────────────────────
+const NAV_LINKS = [
+  { id: "skills", label: "SKILLS" },
+  { id: "education", label: "EDUCATION" },
+  { id: "experience", label: "EXPERIENCE" },
+  { id: "projects", label: "PROJECTS" },
+  { id: "contact", label: "CONTACT" },
+]
+const NAV_IDS = NAV_LINKS.map((l) => l.id)
+
 function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
-
-  const links = [
-    { href: "#skills", label: "SKILLS" },
-    { href: "#experience", label: "EXPERIENCE" },
-    { href: "#projects", label: "PROJECTS" },
-    { href: "#contact", label: "CONTACT" },
-  ]
+  const active = useActiveSection(NAV_IDS)
+  const progress = useScrollProgress()
+  useEscape(() => setMobileOpen(false), mobileOpen)
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 px-6 py-3"
+      aria-label="Main"
+      className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 py-3"
       style={{
         background: "rgba(7,9,15,0.92)",
         borderBottom: "1px solid rgba(0,245,212,0.2)",
         backdropFilter: "blur(8px)",
       }}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <a
           href="#hero"
-          className="font-pixel text-[10px] flicker"
+          className="font-pixel text-[11px] flicker"
           style={{ color: "#00f5d4", textShadow: "0 0 8px #00f5d4" }}
         >
           AP.EXE
         </a>
 
-        <div className="hidden md:flex items-center gap-7">
-          {links.map(({ href, label }) => (
+        <div className="hidden lg:flex items-center gap-7">
+          {NAV_LINKS.map(({ id, label }) => (
             <a
-              key={href}
-              href={href}
-              className="nav-link font-mono text-[11px] tracking-widest text-[#4a6a8a] hover:text-[#00f5d4] transition-colors"
+              key={id}
+              href={`#${id}`}
+              aria-current={active === id ? "true" : undefined}
+              className="nav-link font-mono text-xs tracking-widest hover:text-[#00f5d4] transition-colors"
+              style={{ color: active === id ? undefined : MUTED }}
             >
               {label}
             </a>
           ))}
+          <a
+            href={profile.resume}
+            target="_blank"
+            rel="noreferrer"
+            className="social-btn font-pixel text-[9px] px-3 py-2 tracking-widest"
+            style={
+              {
+                "--tc": TC.amber,
+                border: `1px solid ${TC.amber}`,
+                color: TC.amber,
+              } as React.CSSProperties
+            }
+          >
+            RESUME
+          </a>
         </div>
 
-        {/* Mobile hamburger */}
-        <button
-          className="md:hidden font-pixel text-[10px] px-2 py-1"
-          style={{ color: "#00f5d4", border: "1px solid rgba(0,245,212,0.4)" }}
-          onClick={() => setMobileOpen((o) => !o)}
-          aria-expanded={mobileOpen}
-          aria-controls="mobile-nav-menu"
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-        >
-          {mobileOpen ? "✕" : "☰"}
-        </button>
+        <div className="flex items-center gap-3">
+          <MusicWidget />
+
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            className="lg:hidden w-10 h-10 flex items-center justify-center"
+            style={{ color: "#00f5d4", border: "1px solid rgba(0,245,212,0.4)" }}
+            onClick={() => setMobileOpen((o) => !o)}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav-menu"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          >
+            <PixelIcon rows={mobileOpen ? ICON_CLOSE : ICON_MENU} size={mobileOpen ? 13 : 16} />
+          </button>
+        </div>
       </div>
 
       {/* Mobile dropdown */}
       {mobileOpen && (
         <div
           id="mobile-nav-menu"
-          className="md:hidden flex flex-col gap-4 mt-4 pt-4"
+          className="lg:hidden flex flex-col mt-3 pt-2"
           style={{ borderTop: "1px solid rgba(0,245,212,0.2)" }}
         >
-          {links.map(({ href, label }) => (
+          {NAV_LINKS.map(({ id, label }) => (
             <a
-              key={href}
-              href={href}
+              key={id}
+              href={`#${id}`}
               onClick={() => setMobileOpen(false)}
-              className="font-mono text-xs tracking-widest text-[#4a6a8a] hover:text-[#00f5d4] transition-colors"
+              aria-current={active === id ? "true" : undefined}
+              className="font-mono text-sm tracking-widest py-3 hover:text-[#00f5d4] transition-colors"
+              style={{ color: active === id ? "#00f5d4" : MUTED }}
             >
+              {active === id ? "▸ " : "  "}
               {label}
             </a>
           ))}
+          <a
+            href={profile.resume}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => setMobileOpen(false)}
+            className="font-mono text-sm tracking-widest py-3"
+            style={{ color: TC.amber }}
+          >
+            {"  "}RESUME ↗
+          </a>
         </div>
       )}
+
+      {/* Scroll progress */}
+      <div
+        aria-hidden="true"
+        className="absolute left-0 right-0 bottom-[-1px] h-[2px] origin-left"
+        style={{
+          background: "#00f5d4",
+          boxShadow: "0 0 6px #00f5d4",
+          transform: `scaleX(${progress})`,
+        }}
+      />
     </nav>
   )
 }
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
-function Hero() {
-  const lines = [
-    "> Welcome to my portfolio.",
-    "> Name: Alireza Pourreza",
-    "> Role: Software Developer · Ontario Public Service",
-    "> Education: University of Toronto · CS Specialist",
-    "> GPA: 3.98 / 4.00 · Expected Graduation: June 2028",
-    "> Focus: Full-stack development, AI/ML, DevOps, and cloud solutions.",
-    "> Thanks for visiting.",
-  ]
+const HERO_LINES = [
+  "> Welcome to my portfolio.",
+  "> Name: Alireza Pourreza",
+  "> Now: Teaching Assistant · University of Toronto",
+  "> Previously: Software Developer Intern · Ontario Public Service",
+  "> Education: University of Toronto · CS Specialist",
+  `> GPA: ${profile.gpa} · Expected Graduation: ${profile.graduation}`,
+  "> Focus: Full-stack development, AI/ML, DevOps, and cloud solutions.",
+  "> Thanks for visiting.",
+]
 
+function Hero() {
   return (
     <section
       id="hero"
-      className="relative min-h-screen flex flex-col items-center justify-center grid-bg px-4 py-24 overflow-hidden"
+      className="relative min-h-screen flex flex-col items-center justify-center grid-bg px-4 pt-24 pb-16 overflow-hidden"
     >
-      <SectionBg src={img4} alt="Pixel city" opacity={0.3} />
+      <SectionBg src={img4} opacity={0.3} eager />
 
       {/* Extra glow orbs */}
       <div
@@ -442,14 +627,11 @@ function Hero() {
         className="max-w-3xl w-full space-y-8 relative"
         style={{ zIndex: 2 }}
       >
-        <div className="text-center space-y-2">
-          <div className="font-pixel text-[10px] glow-amber mb-2 tracking-widest">
-            ◈ WELCOME · ALIREZA'S PORTFOLIO ◈
-          </div>
+        <div className="text-center space-y-4">
           <h1
             className="font-pixel leading-tight flicker"
             style={{
-              fontSize: "clamp(1.1rem, 4vw, 2.2rem)",
+              fontSize: "clamp(1.25rem, 4.6vw, 2.6rem)",
               color: "#00f5d4",
               textShadow:
                 "0 0 8px #00f5d4, 0 0 20px #00f5d4, 0 0 50px rgba(0,245,212,0.5)",
@@ -457,50 +639,45 @@ function Hero() {
           >
             ALIREZA POURREZA
           </h1>
-          <div className="font-mono text-sm tracking-[0.3em] text-[#4a6a8a] uppercase">
+          <p
+            className="font-mono text-xs md:text-sm tracking-[0.25em] uppercase"
+            style={{ color: BODY }}
+          >
             Software Engineer · AI Engineer · DevOps Engineer
-          </div>
+          </p>
         </div>
 
-        <PixelFrame color="cyan" className="p-5">
-          <div
-            className="flex items-center gap-2 pb-3 mb-3"
-            style={{ borderBottom: "1px solid rgba(0,245,212,0.2)" }}
-          >
-            <span className="w-2.5 h-2.5 rounded-full bg-[#f72585]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ffb700]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#00f5d4]" />
-            <span className="font-mono text-[10px] text-[#4a6a8a] ml-2">
-              terminal — alireza@portfolio
-            </span>
-          </div>
-          <Typewriter lines={lines} />
-        </PixelFrame>
+        <Terminal lines={HERO_LINES} />
 
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-3 md:gap-4">
+          <a
+            href={profile.resume}
+            target="_blank"
+            rel="noreferrer"
+            className="pixel-btn-solid font-pixel text-[10px] px-5 py-3 tracking-widest"
+          >
+            [ RESUME ]
+          </a>
           {[
-            { label: "[ GITHUB ]", href: profile.github, color: "cyan" },
-            { label: "[ LINKEDIN ]", href: profile.linkedin, color: "magenta" },
-            {
-              label: "[ EMAIL ]",
-              href: `mailto:${profile.email}`,
-              color: "amber",
-            },
-          ].map(({ label, href, color }) => {
+            { label: "[ GITHUB ]", href: profile.github, color: "cyan", external: true },
+            { label: "[ LINKEDIN ]", href: profile.linkedin, color: "magenta", external: true },
+            { label: "[ EMAIL ]", href: `mailto:${profile.email}`, color: "amber", external: false },
+          ].map(({ label, href, color, external }) => {
             const tc = TC[color]
             return (
               <a
                 key={label}
                 href={href}
-                target="_blank"
-                rel="noreferrer"
-                className="social-btn font-pixel text-[9px] px-4 py-2 tracking-widest"
-                style={{
-                  '--tc': tc,
-                  border: `1px solid ${tc}`,
-                  color: tc,
-                  textShadow: `0 0 6px ${tc}`,
-                } as React.CSSProperties}
+                {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
+                className="social-btn font-pixel text-[10px] px-4 py-3 tracking-widest"
+                style={
+                  {
+                    "--tc": tc,
+                    border: `1px solid ${tc}`,
+                    color: tc,
+                    textShadow: `0 0 6px ${tc}`,
+                  } as React.CSSProperties
+                }
               >
                 {label}
               </a>
@@ -509,21 +686,25 @@ function Hero() {
         </div>
 
         <div className="text-center">
-          <span className="font-mono text-[10px] text-[#2a4a6a] tracking-widest animate-bounce inline-block">
+          <a
+            href="#skills"
+            className="font-mono text-xs tracking-widest animate-bounce inline-block px-3 py-2 hover:text-[#00f5d4] transition-colors"
+            style={{ color: FAINT }}
+          >
             ▼ SCROLL TO EXPLORE ▼
-          </span>
+          </a>
         </div>
       </div>
     </section>
   )
 }
 
-// ─── Skills ────────────────────────────────────────────────────────────────────
+// ─── Skills + Education ───────────────────────────────────────────────────────
 function Skills() {
   return (
-    <section id="skills" className="relative overflow-hidden py-20">
-      <SectionBg src={img5} alt="Rainy neon city" opacity={0.4} />
-      <div className="relative max-w-5xl mx-auto px-6" style={{ zIndex: 1 }}>
+    <section id="skills" className="relative overflow-hidden py-24">
+      <SectionBg src={img5} opacity={0.4} />
+      <div className="relative max-w-5xl mx-auto px-4 md:px-6" style={{ zIndex: 1 }}>
         <SectionHeader
           label="SKILLS"
           sub="TECHNICAL TOOLKIT · LANGUAGES, FRAMEWORKS & TECHNOLOGIES"
@@ -539,75 +720,115 @@ function Skills() {
                 color={group.color}
                 className="p-5"
               >
-                <div
-                  className="font-pixel text-[9px] mb-4 pb-2"
+                <h3
+                  className="font-pixel text-[10px] mb-4 pb-3 flex items-center justify-between"
                   style={{
                     color: tc,
                     textShadow: `0 0 6px ${tc}`,
                     borderBottom: `1px solid ${tc}33`,
                   }}
                 >
-                  {group.category}
-                </div>
-                <div className="flex flex-wrap gap-2">
+                  <span>{group.category}</span>
+                  <span className="font-mono text-xs" style={{ color: `${tc}aa`, textShadow: "none" }}>
+                    {group.items.length}
+                  </span>
+                </h3>
+                <ul className="flex flex-wrap gap-2">
                   {group.items.map((skill) => (
-                    <span
+                    <li
                       key={skill}
-                      className="tag-hover font-mono text-[11px] px-2 py-1 cursor-default"
-                      style={{ '--tc': tc } as React.CSSProperties}
+                      className="tag-hover font-mono text-[13px] px-2 py-1 cursor-default"
+                      style={{ "--tc": tc } as React.CSSProperties}
                     >
                       {skill}
-                    </span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </PixelFrame>
             )
           })}
         </div>
 
         {/* Education */}
-        <div className="mt-6">
-          <PixelFrame color="amber" className="p-5">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-              <div>
-                <div className="font-pixel text-[9px] glow-amber mb-3">
-                  ◈ EDUCATION · UNIVERSITY OF TORONTO
-                </div>
-                <div className="font-mono text-sm text-[#b8cfe0] font-bold">
+        <div id="education" className="mt-6">
+          <PixelFrame color="amber" className="p-5 md:p-6">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
+              <div className="min-w-0">
+                <h3 className="font-pixel text-[10px] glow-amber mb-4">
+                  ◈ EDUCATION
+                </h3>
+                <div className="font-mono text-base font-bold" style={{ color: INK }}>
                   {education.school}
                 </div>
-                <div className="font-mono text-xs text-[#4a6a8a] mt-1">
-                  {education.degree}
+                <div className="font-mono text-sm mt-1" style={{ color: BODY }}>
+                  {education.degree} · {education.specialization}
                 </div>
-                <div className="font-mono text-xs text-[#4a6a8a]">
-                  {education.specialization}
+                <div className="font-mono text-sm mt-1" style={{ color: MUTED }}>
+                  Concentrations: {education.concentrations.join(" · ")}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+              </div>
+              <dl className="flex md:flex-col gap-x-6 gap-y-2 md:text-right shrink-0 flex-wrap">
+                <div>
+                  <dt className="sr-only">GPA</dt>
+                  <dd className="font-pixel text-sm md:text-base glow-amber">
+                    {education.gpa}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="sr-only">Honours</dt>
+                  <dd className="font-mono text-sm" style={{ color: BODY }}>
+                    {education.deansList}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="sr-only">Graduation</dt>
+                  <dd className="font-mono text-sm" style={{ color: BODY }}>
+                    {education.graduation}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <div
+              className="grid md:grid-cols-2 gap-5 mt-5 pt-5"
+              style={{ borderTop: "1px solid #ffb70033" }}
+            >
+              <div>
+                <h4 className="font-mono text-xs tracking-widest mb-3" style={{ color: MUTED }}>
+                  SCHOLARSHIPS
+                </h4>
+                <ul className="flex flex-col gap-2">
                   {education.scholarships.map((s) => (
-                    <span
+                    <li
                       key={s}
-                      className="font-mono text-[10px] px-2 py-0.5"
+                      className="font-mono text-[13px] px-2.5 py-1.5 flex items-center gap-2.5 self-start"
                       style={{
                         border: "1px solid #ffb70055",
                         color: "#ffb700",
                         background: "rgba(255,183,0,0.05)",
                       }}
                     >
-                      🏆 {s}
-                    </span>
+                      <PixelIcon rows={ICON_TROPHY} size={11} />
+                      {s}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
-              <div className="text-right shrink-0">
-                <div className="font-pixel text-[9px] glow-amber">
-                  {education.gpa}
-                </div>
-                <div className="font-mono text-xs text-[#4a6a8a] mt-1">
-                  {education.deansList}
-                </div>
-                <div className="font-mono text-xs text-[#4a6a8a] mt-1">
-                  {education.graduation}
-                </div>
+              <div>
+                <h4 className="font-mono text-xs tracking-widest mb-3" style={{ color: MUTED }}>
+                  RELATED COURSEWORK
+                </h4>
+                <ul className="flex flex-wrap gap-2">
+                  {education.coursework.map((c) => (
+                    <li
+                      key={c}
+                      className="tag-hover font-mono text-[13px] px-2 py-1 cursor-default"
+                      style={{ "--tc": TC.amber } as React.CSSProperties}
+                    >
+                      {c}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </PixelFrame>
@@ -619,16 +840,43 @@ function Skills() {
 
 // ─── Experience ────────────────────────────────────────────────────────────────
 function Experience() {
-  const [open, setOpen] = useState<number | null>(null)
+  const [open, setOpen] = useState<Set<number>>(() => new Set())
+  const allOpen = open.size === experience.length
+
+  const toggle = (i: number) =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(i)) next.delete(i)
+      else next.add(i)
+      return next
+    })
 
   return (
-    <section id="experience" className="relative overflow-hidden py-20">
-      <SectionBg src={img2} alt="Cyberpunk street" opacity={0.36} />
-      <div className="relative max-w-5xl mx-auto px-6" style={{ zIndex: 1 }}>
+    <section id="experience" className="relative overflow-hidden py-24">
+      <SectionBg src={img2} opacity={0.36} />
+      <div className="relative max-w-5xl mx-auto px-4 md:px-6" style={{ zIndex: 1 }}>
         <SectionHeader
           label="EXPERIENCE"
-          sub="PROFESSIONAL EXPERIENCE · SELECT A ROLE TO VIEW DETAILS"
+          sub="PROFESSIONAL EXPERIENCE & LEADERSHIP · SELECT A ROLE TO VIEW DETAILS"
           color="magenta"
+          action={
+            <button
+              type="button"
+              onClick={() =>
+                setOpen(allOpen ? new Set() : new Set(experience.map((_, i) => i)))
+              }
+              className="social-btn font-mono text-xs tracking-wider px-3 py-1.5 whitespace-nowrap"
+              style={
+                {
+                  "--tc": TC.magenta,
+                  color: TC.magenta,
+                  border: `1px solid ${TC.magenta}66`,
+                } as React.CSSProperties
+              }
+            >
+              {allOpen ? "▾ COLLAPSE ALL" : "▸ EXPAND ALL"}
+            </button>
+          }
         />
 
         <div className="relative">
@@ -636,113 +884,129 @@ function Experience() {
             className="absolute left-4 top-0 bottom-0 w-px hidden md:block"
             style={{
               background:
-                "linear-gradient(180deg, #00f5d4, #f72585, #ffb700, #a855f7)",
+                "linear-gradient(180deg, #4cc9f0, #00f5d4, #ffb700, #00f5d4, #f72585, #ffb700, #a855f7)",
             }}
           />
 
-          <div className="space-y-4 md:pl-12">
+          <ol className="space-y-4 md:pl-12">
             {experience.map((job, i) => {
               const tc = TC[job.color] ?? "#00f5d4"
-              const isOpen = open === i
+              const isOpen = open.has(i)
+              const isCurrent = job.period.includes("Present")
               const LogoComp = companyLogos[job.company]
+              const panelId = `exp-panel-${i}`
 
               return (
-                <div key={job.company} className="relative">
+                <li key={job.company} className="relative">
                   <div
-                    className="absolute left-[-2.75rem] top-6 w-3 h-3 hidden md:block"
+                    className="absolute left-[-2.75rem] top-7 w-3 h-3 hidden md:block"
                     style={{
                       background: tc,
                       boxShadow: `0 0 8px ${tc}`,
                       transform: "rotate(45deg)",
                     }}
                   />
-                  <PixelFrame
-                    color={job.color}
-                    className="p-5 cursor-pointer interactive-card"
-                    onClick={() => setOpen(isOpen ? null : i)}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isOpen}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault()
-                        setOpen(isOpen ? null : i)
-                      }
-                    }}
-                  >
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                      <div className="flex items-center gap-4">
+                  <PixelFrame color={job.color} className="interactive-card">
+                    <button
+                      type="button"
+                      onClick={() => toggle(i)}
+                      aria-expanded={isOpen}
+                      aria-controls={panelId}
+                      className="w-full text-left p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
                         {LogoComp && (
                           <div
-                            className="shrink-0 flex items-center justify-center w-11 h-11"
+                            className="shrink-0 flex items-center justify-center w-12 h-12"
                             style={{
                               background: "rgba(0,0,0,0.4)",
                               border: `1px solid ${tc}33`,
+                              color: tc,
                             }}
                           >
                             <LogoComp />
                           </div>
                         )}
-                        <div>
-                          <div
-                            className="font-pixel text-[9px] mb-1"
+                        <div className="min-w-0">
+                          <h3
+                            className="font-pixel text-[10px] md:text-[11px] leading-relaxed"
                             style={{ color: tc, textShadow: `0 0 6px ${tc}` }}
                           >
                             {job.company}
-                          </div>
-                          <div className="font-mono text-xs text-[#b8cfe0]">
+                          </h3>
+                          <div className="font-mono text-sm mt-1" style={{ color: INK }}>
                             {job.role}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2 md:gap-3 shrink-0">
+                        {isCurrent && (
+                          <span
+                            className="font-mono text-xs px-2 py-0.5 flex items-center gap-1.5"
+                            style={{ color: "#07090f", background: tc }}
+                          >
+                            <span className="w-1.5 h-1.5" style={{ background: "#07090f" }} />
+                            NOW
+                          </span>
+                        )}
                         <span
-                          className="font-mono text-[10px] px-2 py-0.5"
+                          className="font-mono text-[13px] px-2 py-0.5"
                           style={{ border: `1px solid ${tc}55`, color: tc }}
                         >
                           {job.period}
                         </span>
-
                         <span
-                          className="font-mono text-[10px] tracking-wider px-3 py-1.5 transition-all duration-200"
+                          className="font-mono text-[13px] tracking-wider px-3 py-1.5 transition-colors duration-200"
                           style={{
                             color: tc,
                             border: `1px solid ${tc}66`,
-                            background: `${tc}0d`,
-                            boxShadow: isOpen ? `0 0 8px ${tc}22` : "none",
+                            background: isOpen ? `${tc}1f` : `${tc}0d`,
                             whiteSpace: "nowrap",
                           }}
                         >
-                          {isOpen ? "▾ HIDE DETAILS" : "▸ VIEW DETAILS"}
+                          {isOpen
+                            ? "▾ HIDE"
+                            : `▸ ${job.bullets.length} ${job.bullets.length === 1 ? "DETAIL" : "DETAILS"}`}
                         </span>
                       </div>
-                    </div>
+                    </button>
 
-                    {isOpen && (
-                      <div
-                        className="mt-4 pt-4 space-y-2"
-                        style={{ borderTop: `1px solid ${tc}33` }}
-                      >
-                        {job.bullets.map((b, bi) => (
-                          <div key={bi} className="flex gap-3">
-                            <span
-                              className="font-mono text-xs shrink-0"
-                              style={{ color: tc }}
-                            >
-                              ▸
-                            </span>
-                            <p className="font-mono text-xs text-[#8aaccc] leading-5">
-                              {b}
-                            </p>
-                          </div>
-                        ))}
+                    <div
+                      id={panelId}
+                      className="accordion"
+                      data-open={isOpen}
+                      inert={!isOpen}
+                    >
+                      <div>
+                        <ul
+                          className="mx-4 md:mx-5 mb-5 pt-4 space-y-3"
+                          style={{ borderTop: `1px solid ${tc}33` }}
+                        >
+                          {job.bullets.map((b, bi) => (
+                            <li key={bi} className="flex gap-3">
+                              <span
+                                className="font-mono text-sm shrink-0"
+                                style={{ color: tc }}
+                                aria-hidden="true"
+                              >
+                                ▸
+                              </span>
+                              <p
+                                className="font-mono text-sm leading-6 max-w-[75ch]"
+                                style={{ color: BODY }}
+                              >
+                                {b}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                    )}
+                    </div>
                   </PixelFrame>
-                </div>
+                </li>
               )
             })}
-          </div>
+          </ol>
         </div>
       </div>
     </section>
@@ -750,42 +1014,162 @@ function Experience() {
 }
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
+type Project = (typeof projects)[number]
+
+const CYCLE_COLORS = ["cyan", "magenta", "amber", "purple"]
+
+function ProjectCard({ proj, color }: { proj: Project; color: string }) {
+  const tc = TC[color]
+  const LogoComp = projectLogos[proj.name]
+  const featured = proj.featured
+
+  const body = (
+    <PixelFrame
+      color={color}
+      className={`p-5 interactive-card flex flex-col h-full ${featured ? "md:p-7" : ""}`}
+    >
+      <div className={featured ? "grid lg:grid-cols-[1fr_1.1fr] gap-x-10 gap-y-5" : "flex flex-col flex-1"}>
+        <div className="flex flex-col">
+          {/* Project header */}
+          <div className="flex items-center gap-3 mb-3">
+            {LogoComp && (
+              <div
+                className="shrink-0 flex items-center justify-center w-11 h-11"
+                style={{
+                  background: "rgba(0,0,0,0.4)",
+                  border: `1px solid ${tc}33`,
+                  color: tc,
+                }}
+              >
+                <LogoComp />
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <h3
+                className={`font-pixel leading-relaxed ${featured ? "text-xs md:text-sm" : "text-[10px]"}`}
+                style={{ color: tc, textShadow: `0 0 6px ${tc}` }}
+              >
+                {proj.name}
+              </h3>
+              <div className="font-mono text-[13px] mt-0.5" style={{ color: `${tc}bb` }}>
+                {proj.type} · {proj.period}
+              </div>
+            </div>
+          </div>
+
+          {featured && (
+            <span
+              className="font-mono text-xs px-2 py-0.5 self-start mb-3 flex items-center gap-1.5"
+              style={{ color: "#07090f", background: tc }}
+            >
+              <span className="w-1.5 h-1.5" style={{ background: "#07090f" }} />
+              LATEST BUILD
+            </span>
+          )}
+
+          {/* Description */}
+          <p
+            className={`font-mono text-sm leading-6 mb-4 ${featured ? "" : "flex-1"}`}
+            style={{ color: BODY }}
+          >
+            {proj.description}
+          </p>
+
+          {/* Tags */}
+          <ul className="flex flex-wrap gap-1.5 mt-auto" aria-label="Technologies">
+            {proj.tags.map((tag) => (
+              <li
+                key={tag}
+                className="font-mono text-xs px-1.5 py-0.5"
+                style={{
+                  border: `1px solid ${tc}44`,
+                  color: tc,
+                  background: `${tc}0a`,
+                }}
+              >
+                {tag}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {featured && proj.highlights && (
+          <ul className="space-y-3 lg:pl-8 lg:border-l" style={{ borderColor: `${tc}33` }}>
+            {proj.highlights.map((h, hi) => (
+              <li key={hi} className="flex gap-3">
+                <span className="font-mono text-sm shrink-0" style={{ color: tc }} aria-hidden="true">
+                  ▸
+                </span>
+                <p className="font-mono text-sm leading-6" style={{ color: BODY }}>
+                  {h}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* GitHub link */}
+      {proj.github && (
+        <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${tc}22` }}>
+          <span
+            className="inline-flex items-center gap-2 font-mono text-[13px] px-3 py-2 transition-transform duration-200 group-hover:translate-x-1"
+            style={{
+              border: `1px solid ${tc}66`,
+              color: tc,
+              background: `${tc}08`,
+              textShadow: `0 0 5px ${tc}`,
+            }}
+          >
+            <span aria-hidden="true">↗</span>
+            <span>VIEW ON GITHUB</span>
+          </span>
+        </div>
+      )}
+    </PixelFrame>
+  )
+
+  const span = featured ? "md:col-span-2 lg:col-span-3" : ""
+
+  return proj.github ? (
+    <a
+      href={proj.github}
+      target="_blank"
+      rel="noreferrer"
+      className={`block group ${span}`}
+      aria-label={`${proj.name}: view on GitHub`}
+    >
+      {body}
+    </a>
+  ) : (
+    <div className={span}>{body}</div>
+  )
+}
+
 function Projects() {
-  const [filter, setFilter] =
-    useState<"all" | "hackathon" | "personal" | "academic">("all")
-
-  const categorize = (type: string) => {
-    if (type.toLowerCase().includes("hackathon")) return "hackathon"
-
-    if (
-      type.toLowerCase().includes("group") ||
-      type.toLowerCase().includes("competition") ||
-      type.toLowerCase().includes("clash")
-    )
-      return "academic"
-
-    return "personal"
-  }
-
-  const filtered =
-    filter === "all"
-      ? projects
-      : projects.filter((p) => categorize(p.type) === filter)
-
-  const cycleColors = ["cyan", "magenta", "amber", "purple"]
+  const [filter, setFilter] = useState<"all" | ProjectCategory>("all")
 
   const filterLabels: Array<{ key: typeof filter; label: string }> = [
     { key: "all", label: "ALL" },
     { key: "personal", label: "PERSONAL" },
     { key: "hackathon", label: "HACKATHONS" },
-    { key: "academic", label: "ACADEMIC" },
+    { key: "coursework", label: "COURSEWORK" },
   ]
 
-  return (
-    <section id="projects" className="relative overflow-hidden py-20">
-      <SectionBg src={img3} alt="Neon city night" opacity={0.36} />
+  const countFor = (key: typeof filter) =>
+    key === "all" ? projects.length : projects.filter((p) => p.category === key).length
 
-      <div className="relative max-w-5xl mx-auto px-6" style={{ zIndex: 1 }}>
+  // Colour stays tied to the project, not to its position in the filtered list
+  const visible = projects
+    .map((p, i) => ({ p, color: CYCLE_COLORS[i % CYCLE_COLORS.length] }))
+    .filter(({ p }) => filter === "all" || p.category === filter)
+
+  return (
+    <section id="projects" className="relative overflow-hidden py-24">
+      <SectionBg src={img3} opacity={0.36} />
+
+      <div className="relative max-w-6xl mx-auto px-4 md:px-6" style={{ zIndex: 1 }}>
         <SectionHeader
           label="PROJECTS"
           sub="SELECTED WORK · PROJECTS & TECHNICAL EXPLORATIONS"
@@ -793,138 +1177,37 @@ function Projects() {
         />
 
         {/* Filter buttons */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          {filterLabels.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className="font-pixel text-[8px] px-3 py-2 tracking-widest transition-all"
-              style={{
-                border: `1px solid ${filter === key ? "#ffb700" : "#1a2d45"}`,
-                color: filter === key ? "#ffb700" : "#4a6a8a",
-                background:
-                  filter === key ? "rgba(255,183,0,0.1)" : "transparent",
-                boxShadow:
-                  filter === key ? "0 0 8px rgba(255,183,0,0.3)" : "none",
-              }}
-            >
-              {label}
-            </button>
-          ))}
-
-          <span className="font-mono text-xs text-[#2a4a6a] self-center ml-2">
-            {filtered.length} projects
-          </span>
+        <div className="flex flex-wrap gap-2 mb-8" role="group" aria-label="Filter projects">
+          {filterLabels.map(({ key, label }) => {
+            const on = filter === key
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFilter(key)}
+                aria-pressed={on}
+                className="font-pixel text-[9px] px-3 py-2.5 tracking-widest transition-colors hover:text-[#ffb700]"
+                style={{
+                  border: `1px solid ${on ? "#ffb700" : "#2a4060"}`,
+                  color: on ? "#ffb700" : MUTED,
+                  background: on ? "rgba(255,183,0,0.1)" : "rgba(7,9,15,0.6)",
+                  boxShadow: on ? "0 0 8px rgba(255,183,0,0.3)" : "none",
+                }}
+              >
+                {label}
+                <span className="font-mono text-xs ml-2" style={{ opacity: 0.8 }}>
+                  {countFor(key)}
+                </span>
+              </button>
+            )
+          })}
         </div>
 
         {/* Project cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((proj, i) => {
-            const color = cycleColors[i % cycleColors.length]
-            const tc = TC[color]
-            const LogoComp = projectLogos[proj.name]
-
-            return (
-              <a
-                key={proj.name}
-                href={proj.github}
-                target="_blank"
-                rel="noreferrer"
-                className="block group"
-                aria-label={`View ${proj.name} on GitHub`}
-              >
-                <PixelFrame
-                  color={color}
-                  className="p-4 interactive-card flex flex-col"
-                >
-                  {/* Project header */}
-                  <div className="flex items-center gap-3 mb-2">
-                    {LogoComp && (
-                      <div
-                        className="shrink-0 flex items-center justify-center w-10 h-10"
-                        style={{
-                          background: "rgba(0,0,0,0.4)",
-                          border: `1px solid ${tc}33`,
-                        }}
-                      >
-                        <LogoComp />
-                      </div>
-                    )}
-
-                    <div>
-                      <div
-                        className="font-pixel text-[8px]"
-                        style={{
-                          color: tc,
-                          textShadow: `0 0 6px ${tc}`,
-                        }}
-                      >
-                        {proj.name}
-                      </div>
-
-                      <div
-                        className="font-mono text-[10px] mt-0.5"
-                        style={{ color: `${tc}88` }}
-                      >
-                        {proj.type}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Period */}
-                  <div
-                    className="font-mono text-[10px] mb-3"
-                    style={{ color: "#2a4a6a" }}
-                  >
-                    {proj.period}
-                  </div>
-
-                  {/* Description */}
-                  <p className="font-mono text-[11px] text-[#6a8caa] leading-5 flex-1 mb-3">
-                    {proj.description}
-                  </p>
-
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1 mt-auto">
-                    {proj.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="font-mono text-[9px] px-1.5 py-0.5"
-                        style={{
-                          border: `1px solid ${tc}33`,
-                          color: tc,
-                          background: `${tc}08`,
-                        }}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* GitHub link */}
-                  <div
-                    className="mt-4 pt-3"
-                    style={{
-                      borderTop: `1px solid ${tc}22`,
-                    }}
-                  >
-                    <div
-                      className="inline-flex items-center gap-2 font-mono text-[10px] px-3 py-2 transition-all duration-200 group-hover:translate-x-1"
-                      style={{
-                        border: `1px solid ${tc}66`,
-                        color: tc,
-                        background: `${tc}08`,
-                        textShadow: `0 0 5px ${tc}`,
-                      }}
-                    >
-                      <span>↗</span>
-                      <span>VIEW PROJECT ON GITHUB</span>
-                    </div>
-                  </div>
-                </PixelFrame>
-              </a>
-            )
-          })}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" aria-live="polite">
+          {visible.map(({ p, color }) => (
+            <ProjectCard key={p.name} proj={p} color={color} />
+          ))}
         </div>
       </div>
     </section>
@@ -935,11 +1218,14 @@ function Projects() {
 const FORMSPREE_ID = import.meta.env.VITE_FORMSPREE_ID
 
 function Contact() {
-  const formRef = useRef<HTMLFormElement>(null)
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle",
   )
   const [form, setForm] = useState({ name: "", email: "", message: "" })
+  const [copied, setCopied] = useState(false)
+  const copyTimer = useRef<number | undefined>(undefined)
+
+  useEffect(() => () => clearTimeout(copyTimer.current), [])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -947,6 +1233,10 @@ function Contact() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!FORMSPREE_ID) {
+      setStatus("error")
+      return
+    }
     setStatus("sending")
     try {
       const res = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
@@ -966,129 +1256,136 @@ function Contact() {
     }
   }
 
-  const focusStyle = {
-    onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      e.currentTarget.style.borderColor = "#a855f7"
-      e.currentTarget.style.boxShadow = "0 0 10px rgba(168,85,247,0.35)"
-    },
-    onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      e.currentTarget.style.borderColor = "#1a2d45"
-      e.currentTarget.style.boxShadow = "none"
-    },
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(profile.email)
+      setCopied(true)
+      clearTimeout(copyTimer.current)
+      copyTimer.current = window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      window.location.href = `mailto:${profile.email}`
+    }
   }
 
-  const baseInput: React.CSSProperties = {
-    width: "100%",
-    background: "rgba(0,0,0,0.55)",
-    border: "1px solid #1a2d45",
-    color: "#b8cfe0",
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: "0.8rem",
-    padding: "12px 14px",
-    outline: "none",
-    transition: "border-color 0.2s, box-shadow 0.2s",
-  }
+  const labelClass = "font-pixel text-[9px] block mb-2.5"
 
   return (
-    <section id="contact" className="relative overflow-hidden py-20 pb-32">
-      <SectionBg src={img1} alt="Dungeon pixel scene" opacity={0.44} />
+    <section id="contact" className="relative overflow-hidden py-24 pb-16">
+      <SectionBg src={img1} opacity={0.44} />
 
-      <div className="relative max-w-2xl mx-auto px-6" style={{ zIndex: 1 }}>
+      <div className="relative max-w-2xl mx-auto px-4 md:px-6" style={{ zIndex: 1 }}>
         <SectionHeader
           label="CONTACT"
           sub="GET IN TOUCH · OPEN TO OPPORTUNITIES & COLLABORATION"
           color="purple"
         />
 
-        <PixelFrame color="purple" className="p-7">
-          <div
-            className="font-pixel text-[9px] mb-1"
+        <PixelFrame color="purple" className="p-5 md:p-7">
+          <h3
+            className="font-pixel text-[10px] mb-2"
             style={{ color: "#a855f7", textShadow: "0 0 8px #a855f7" }}
           >
             ◈ SEND A MESSAGE
-          </div>
-          <p className="font-mono text-xs text-[#4a6a8a] mb-7">
+          </h3>
+          <p className="font-mono text-sm leading-6 mb-5" style={{ color: BODY }}>
             I'm always happy to connect about internships, co-ops, software
             development opportunities, or interesting technical projects.
           </p>
 
+          {/* Direct line */}
+          <div
+            className="flex flex-wrap items-center gap-2 mb-7 p-3"
+            style={{ background: "rgba(168,85,247,0.06)", border: "1px solid #a855f733" }}
+          >
+            <a
+              href={`mailto:${profile.email}`}
+              className="font-mono text-sm break-all hover:underline underline-offset-4"
+              style={{ color: INK }}
+            >
+              {profile.email}
+            </a>
+            <button
+              type="button"
+              onClick={copyEmail}
+              className="social-btn font-mono text-xs px-2.5 py-1 ml-auto"
+              style={
+                {
+                  "--tc": TC.purple,
+                  color: copied ? TC.cyan : "#c79bff",
+                  border: `1px solid ${copied ? TC.cyan : "#a855f777"}`,
+                } as React.CSSProperties
+              }
+              aria-live="polite"
+            >
+              {copied ? "COPIED ✓" : "COPY"}
+            </button>
+          </div>
+
           {status === "sent" ? (
-            <div className="text-center py-12 space-y-4">
-              <div className="font-pixel text-[10px] glow-cyan">
+            <div className="text-center py-12 space-y-4" role="status">
+              <div className="font-pixel text-[11px] glow-cyan">
                 [ MESSAGE SENT ✓ ]
               </div>
-              <p className="font-mono text-xs text-[#4a6a8a]">
+              <p className="font-mono text-sm" style={{ color: BODY }}>
                 Thanks for reaching out. I'll get back to you soon.
               </p>
               <button
+                type="button"
                 onClick={() => setStatus("idle")}
-                className="font-pixel text-[8px] px-4 py-2 mt-4 transition-all"
-                style={{
-                  border: "1px solid #00f5d4",
-                  color: "#00f5d4",
-                  background: "transparent",
-                }}
+                className="social-btn font-pixel text-[9px] px-4 py-2.5 mt-4"
+                style={
+                  {
+                    "--tc": TC.cyan,
+                    border: "1px solid #00f5d4",
+                    color: "#00f5d4",
+                  } as React.CSSProperties
+                }
               >
                 [ SEND ANOTHER MESSAGE ]
               </button>
             </div>
           ) : (
-            <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label
-                  htmlFor="contact-name"
-                  className="font-pixel text-[8px] block mb-2"
-                  style={{ color: "#a855f7" }}
-                >
-                  YOUR NAME
-                </label>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid md:grid-cols-2 gap-5">
+                <div>
+                  <label htmlFor="contact-name" className={labelClass} style={{ color: "#c79bff" }}>
+                    YOUR NAME
+                  </label>
+                  <input
+                    id="contact-name"
+                    name="name"
+                    type="text"
+                    autoComplete="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    required
+                    placeholder="What's your name?"
+                    className="field"
+                  />
+                </div>
 
-                <input
-                  id="contact-name"
-                  name="name"
-                  type="text"
-                  autoComplete="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  required
-                  placeholder="What's your name?"
-                  style={baseInput}
-                  {...focusStyle}
-                />
+                <div>
+                  <label htmlFor="contact-email" className={labelClass} style={{ color: "#c79bff" }}>
+                    YOUR EMAIL
+                  </label>
+                  <input
+                    id="contact-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    required
+                    placeholder="you@example.com"
+                    className="field"
+                  />
+                </div>
               </div>
 
               <div>
-                <label
-                  htmlFor="contact-email"
-                  className="font-pixel text-[8px] block mb-2"
-                  style={{ color: "#a855f7" }}
-                >
-                  YOUR EMAIL
-                </label>
-
-                <input
-                  id="contact-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  required
-                  placeholder="What's your email address?"
-                  style={baseInput}
-                  {...focusStyle}
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="contact-message"
-                  className="font-pixel text-[8px] block mb-2"
-                  style={{ color: "#a855f7" }}
-                >
+                <label htmlFor="contact-message" className={labelClass} style={{ color: "#c79bff" }}>
                   YOUR MESSAGE
                 </label>
-
                 <textarea
                   id="contact-message"
                   name="message"
@@ -1098,42 +1395,38 @@ function Contact() {
                   required
                   rows={6}
                   placeholder="Tell me a little about your project or opportunity."
-                  style={{ ...baseInput, resize: "vertical", minHeight: 130 }}
-                  {...focusStyle}
+                  className="field"
+                  style={{ resize: "vertical", minHeight: 140 }}
                 />
               </div>
 
               {status === "error" && (
-                <p className="font-mono text-xs text-[#f72585]">
-                  ▸ Something went wrong while sending your message. Please try again.
+                <p className="font-mono text-sm leading-6" style={{ color: "#ff4d9d" }} role="alert">
+                  ▸ Your message couldn't be sent. Please try again, or email me
+                  directly at{" "}
+                  <a href={`mailto:${profile.email}`} className="underline underline-offset-4">
+                    {profile.email}
+                  </a>
+                  .
                 </p>
               )}
 
               <button
                 type="submit"
                 disabled={status === "sending"}
-                className="font-pixel text-[9px] px-6 py-3 w-full tracking-widest transition-all"
-                style={{
-                  border: "1px solid #a855f7",
-                  color: "#a855f7",
-                  background:
-                    status === "sending"
-                      ? "rgba(168,85,247,0.18)"
-                      : "rgba(168,85,247,0.08)",
-                  boxShadow: "0 0 10px rgba(168,85,247,0.2)",
-                  cursor: status === "sending" ? "not-allowed" : "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  if (status !== "sending")
-                    (e.currentTarget as HTMLButtonElement).style.background =
-                      "rgba(168,85,247,0.22)"
-                }}
-                onMouseLeave={(e) => {
-                  ; (e.currentTarget as HTMLButtonElement).style.background =
-                    status === "sending"
-                      ? "rgba(168,85,247,0.18)"
-                      : "rgba(168,85,247,0.08)"
-                }}
+                className="social-btn font-pixel text-[10px] px-6 py-3.5 w-full tracking-widest disabled:cursor-not-allowed disabled:opacity-70"
+                style={
+                  {
+                    "--tc": TC.purple,
+                    border: "1px solid #a855f7",
+                    color: "#c79bff",
+                    background:
+                      status === "sending"
+                        ? "rgba(168,85,247,0.18)"
+                        : "rgba(168,85,247,0.08)",
+                    boxShadow: "0 0 10px rgba(168,85,247,0.2)",
+                  } as React.CSSProperties
+                }
               >
                 {status === "sending"
                   ? "[ SENDING... ]"
@@ -1143,14 +1436,21 @@ function Contact() {
           )}
         </PixelFrame>
 
-        <div className="text-center mt-12">
-          <div
-            className="font-pixel text-[8px] inline-block px-4 py-2"
-            style={{ color: "#2a4a6a", border: "1px solid #1a2d45" }}
+        <footer className="flex flex-col items-center gap-4 mt-14">
+          <a
+            href="#hero"
+            className="font-mono text-xs tracking-widest px-3 py-2 hover:text-[#00f5d4] transition-colors"
+            style={{ color: MUTED }}
           >
-            © 2026 ALIREZA POURREZA · BUILT WITH REACT + VITE
+            ▲ BACK TO TOP
+          </a>
+          <div
+            className="font-pixel text-[9px] leading-relaxed text-center inline-block px-4 py-2"
+            style={{ color: FAINT, border: "1px solid #1a2d45" }}
+          >
+            © {new Date().getFullYear()} ALIREZA POURREZA · BUILT WITH REACT + VITE
           </div>
-        </div>
+        </footer>
       </div>
     </section>
   )
@@ -1171,14 +1471,19 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen" style={{ background: "#07090f" }}>
+      <a href="#main" className="skip-link font-mono text-sm">
+        Skip to content
+      </a>
+
       <div
         className="fixed inset-0 pointer-events-none overflow-hidden"
         style={{ zIndex: 0 }}
+        aria-hidden="true"
       >
         {stars.map((s) => (
           <div
             key={s.id}
-            className="absolute rounded-full"
+            className="star absolute rounded-full"
             style={{
               left: `${s.x}%`,
               top: `${s.y}%`,
@@ -1194,12 +1499,13 @@ export default function App() {
 
       <div className="relative" style={{ zIndex: 1 }}>
         <Navbar />
-        <MusicWidget />
-        <Hero />
-        <Skills />
-        <Experience />
-        <Projects />
-        <Contact />
+        <main id="main">
+          <Hero />
+          <Skills />
+          <Experience />
+          <Projects />
+          <Contact />
+        </main>
       </div>
     </div>
   )

@@ -1,3 +1,5 @@
+export type Accent = "cyan" | "magenta" | "amber" | "purple" | "blue"
+
 export const profile = {
   name: "Alireza Pourreza",
   title: "CS @ University of Toronto",
@@ -6,11 +8,12 @@ export const profile = {
   linkedin: "https://www.linkedin.com/in/alireza-pourrezaaa/",
   github: "https://github.com/AlirezaPrz",
   portfolio: "https://alirezaprz.github.io/",
+  resume: `${import.meta.env.BASE_URL}Alireza-Pourreza-Resume.pdf`,
   gpa: "3.98 / 4.00",
   graduation: "June 2029",
 }
 
-export const skills = [
+export const skills: Array<{ category: string; color: Accent; items: string[] }> = [
   {
     category: "Programming",
     color: "cyan",
@@ -23,6 +26,7 @@ export const skills = [
       "TypeScript",
       "SQL",
       "Bash",
+      "Shell",
       "HTML/CSS",
     ],
   },
@@ -39,9 +43,15 @@ export const skills = [
       "JWT Authentication",
       "PostgreSQL",
       "MySQL",
+      "SQLite",
       "MongoDB",
       "Supabase",
       "Firebase",
+      "Raspberry Pi",
+      "Linux",
+      "Pydantic",
+      "Caddy",
+      "Nginx",
     ],
   },
   {
@@ -55,16 +65,19 @@ export const skills = [
       "GCP",
       "Azure DevOps",
       "Vertex AI",
+      "Jira",
+      "OpenAI & Gemini APIs",
       "React.js",
       "Tailwind",
+      "n8n",
       "Figma",
       "SharePoint",
       "ALM",
       "Power BI",
-      "BitBucket",
+      "Bitbucket",
       "MS Teams",
       "MS Copilot",
-      "Nginx",
+      "pytest",
     ],
   },
   {
@@ -79,6 +92,8 @@ export const skills = [
       "Keras",
       "Deep Neural Networks",
       "Jupyter Notebooks",
+      "Ollama (local LLMs)",
+      "Whisper / whisper.cpp",
     ],
   },
 ]
@@ -87,10 +102,10 @@ export const education = {
   school: "University of Toronto",
   degree: "Honours B.Sc. in Computer Science (Co-op)",
   specialization: "Computer Science Specialist",
-  concentrations: ["Artificial Intelligence and Modelling", "Simulations"],
+  concentrations: ["Artificial Intelligence", "Modelling/Simulations"],
   gpa: "3.98 / 4.00",
   deansList: "2025 Dean's List",
-  graduation: "Expected June 2028",
+  graduation: "Expected June 2029",
   scholarships: [
     "President's Scholar Award of Excellence",
     "International Scholar Award",
@@ -108,14 +123,43 @@ export const education = {
   ],
 }
 
-export const experience = [
+export const experience: Array<{
+  company: string
+  role: string
+  period: string
+  color: Accent
+  bullets: string[]
+}> = [
+  {
+    company: "CREATE UofT",
+    role: "Associate of Technology",
+    period: "Oct 2026 – Present",
+    color: "cyan",
+    bullets: ["Working on making the CREATE Code Clash competition."],
+  },
+  {
+    company: "University of Toronto",
+    role: "Teaching Assistant",
+    period: "Sep 2026 – Present",
+    color: "blue",
+    bullets: [
+      "Currently TAing Calculus I (MATA30) and Intro to Theory of Computation (CSCB36).",
+    ],
+  },
+  {
+    company: "The Association of Mathematical and Computer Science Students (AMACSS)",
+    role: "Director of Special Events",
+    period: "Sep 2026 – Present",
+    color: "amber",
+    bullets: ["Currently working on cool events for the UTSC CMS community."],
+  },
   {
     company: "Ontario Public Service (OPS)",
     role: "Software Developer Intern",
-    period: "Jan 2026 – Present",
+    period: "Jan 2026 – Aug 2026",
     color: "cyan",
     bullets: [
-      "Developed enterprise web applications using Java, Spring Boot, JSP, JavaScript, HTML, Tomcat, Azure VMs, Azure DevOps, Bitbucket, and Nginx in an Agile Scrum environment.",
+      "Built enterprise web applications with Java, Spring Boot, JSP, and JavaScript, deployed on Azure VMs with Tomcat and Nginx in an Agile Scrum environment.",
       "Designed and implemented an ad-hoc report generator with dynamic filtering and PDF/Excel export, collaborating with managers and architects from Figma prototype through production deployment.",
       "Built core features of a Fit-Gap Assessment Platform, including an admin portal, dashboards, database design, and session management, replacing a manual Excel-based workflow.",
       "Implemented Microsoft Entra ID authentication, designed CI/CD pipelines in Azure DevOps, and configured Tomcat 10, Azure VMs, and Nginx to automate deployments across DEV, UAT, and PROD environments.",
@@ -129,7 +173,8 @@ export const experience = [
     period: "Jun 2025 – Present",
     color: "magenta",
     bullets: [
-      "Co-led an Agent AI codelab on Vertex AI for 40+ attendees, presenting a live demo of my Expense Tracker Agent and providing 1:1 support on agent setup and tool integration, tasked with ensuring everyone left with a working agent.",
+      "Co-led an Agent AI codelab on Vertex AI for 30+ attendees, presenting a live demo of my Expense Tracker Agent and providing 1:1 support on agent setup and tool integration; ensured everyone left with a working agent.",
+      "Engaged 20+ students by co-presenting LeetCode strategy, time complexity, data-structure selection, and problem-pattern taxonomy, tasked with delivering the technical segment in GDG's Resume & Interview Workshop.",
       "Projected 300+ attendees by coordinating speakers, venue, and registration workflows, tasked with operations for the campus-wide Build with AI event.",
     ],
   },
@@ -155,10 +200,50 @@ export const experience = [
   },
 ]
 
-export const projects = [
+export type ProjectCategory = "personal" | "hackathon" | "coursework"
+
+export const projects: Array<{
+  name: string
+  type: string
+  category: ProjectCategory
+  period: string
+  github?: string
+  featured?: boolean
+  tags: string[]
+  description: string
+  highlights?: string[]
+}> = [
+  {
+    name: "AirSOAP",
+    type: "Hackathon Project",
+    category: "hackathon",
+    period: "Oct 2026",
+    github: "https://github.com/AlirezaPrz/AirSOAP",
+    featured: true,
+    tags: ["Raspberry Pi 5", "whisper.cpp", "Ollama", "Qwen 2.5 3B", "FastAPI", "React", "TypeScript", "Tailwind", "Caddy"],
+    description:
+      "An offline AI documentation assistant that turns doctor–patient consultations into reviewable SOAP notes with no cloud or internet dependency. Whisper.cpp speech-to-text, a Qwen 2.5 3B LLM (Ollama), a FastAPI backend and a React/TypeScript/Tailwind web app run entirely on a 4 GB Raspberry Pi 5.",
+    highlights: [
+      "Cut live-transcript lag from 20+ seconds behind the speaker to ~4 seconds after each pause (8% word error rate vs 6% for a larger model) by replacing a sliding window with pause-based audio segmentation, benchmarked on the actual Pi.",
+      "Fit speech recognition and LLM inference within 4 GB of RAM by scheduling recording, transcription and each AI task to take turns and unloading whichever model was idle.",
+      "Reduced hallucination risk with strict format validation, server-verified transcript quotes for every suggested condition, \"Not documented\" for anything the clinician never stated, and flags on numbers absent from the transcript.",
+      "Protected patient privacy by keeping transcripts and notes in memory only, deleting audio once transcribed, withholding identifiers from the LLM, and securing access with Argon2-hashed accounts, rate limiting and HTTPS via Caddy.",
+    ],
+  },
+  {
+    name: "New Personal Portfolio",
+    type: "Personal Project",
+    category: "personal",
+    period: "Aug 2026",
+    github: "https://github.com/AlirezaPrz/AlirezaPrz.github.io",
+    tags: ["React", "Vite", "Tailwind", "GitHub Actions", "Formspree", "Spotify"],
+    description:
+      "This site. A retro-inspired developer interface built with React, Vite and Tailwind CSS: expandable experience cards, filterable project cards, organization- and project-specific SVG logos, an embedded Spotify player and a Formspree contact form, deployed to GitHub Pages by a GitHub Actions CI/CD pipeline.",
+  },
   {
     name: "Personal Portfolio",
     type: "Personal Project",
+    category: "personal",
     period: "Oct 2025 – Jan 2026",
     github: "https://github.com/AlirezaPrz/AlirezaPrz.github.io",
     tags: ["React", "Vite", "Tailwind", "GCP Vertex AI"],
@@ -168,6 +253,7 @@ export const projects = [
   {
     name: "Smart Air",
     type: "Software Design Group Project",
+    category: "coursework",
     period: "Nov 2025 – Dec 2025",
     github: "https://github.com/AlirezaPrz/Smart-Air-Group67",
     tags: ["Android", "Java", "Firebase", "MVP Architecture", "JUnit", "Mockito", "Jira"],
@@ -177,6 +263,7 @@ export const projects = [
   {
     name: "Expense Tracker Agent",
     type: "Personal Project",
+    category: "personal",
     period: "Nov 2025",
     github: "https://github.com/AlirezaPrz/expenses-agent",
     tags: ["Vertex AI", "FastAPI", "GCP", "Gemini", "Firestore"],
@@ -186,6 +273,7 @@ export const projects = [
   {
     name: "Shark Finder Telegram Bot",
     type: "Personal Project",
+    category: "personal",
     period: "Nov 2025",
     github: "https://github.com/AlirezaPrz/SharkFinder-n8n-TelegramBot",
     tags: ["n8n", "JavaScript", "Google Sheets", "AI Agents"],
@@ -195,6 +283,7 @@ export const projects = [
   {
     name: "Shark Finder",
     type: "Hackathon Project",
+    category: "hackathon",
     period: "Oct 2025",
     github: "https://github.com/AlirezaPrz/shark-finder",
     tags: ["FastAPI", "Supabase", "PostgreSQL", "Whisper", "Gemini"],
@@ -203,7 +292,8 @@ export const projects = [
   },
   {
     name: "Battleship Server",
-    type: "Systems Programming Project",
+    type: "Software Tools & Systems Programming Project",
+    category: "coursework",
     period: "Jul 2025 – Aug 2025",
     github:
       "https://github.com/AlirezaPrz/Multiplayer-Online-Asynchronous-Battleship",
@@ -214,6 +304,7 @@ export const projects = [
   {
     name: "Chess Bot",
     type: "Personal Project",
+    category: "personal",
     period: "Jul 2025 – Aug 2025",
     github: "https://github.com/AlirezaPrz/ChessAI",
     tags: ["Python", "Alpha-Beta Pruning", "TensorFlow", "OpenAI Gym"],
@@ -223,6 +314,7 @@ export const projects = [
   {
     name: "Chess & Tic-Tac-Toe Bot",
     type: "UofT Code Clash Competition",
+    category: "hackathon",
     period: "Jul 2025",
     github: "https://github.com/AlirezaPrz/Code-Clash-2025-Chess-bot",
     tags: ["C++", "Minimax", "Competitive Programming"],
@@ -232,6 +324,7 @@ export const projects = [
   {
     name: "Fitness Tracker",
     type: "Personal Project",
+    category: "personal",
     period: "Mar 2025 – Apr 2025",
     github: "https://github.com/AlirezaPrz/Fitness-Tracker",
     tags: ["Python", "KNN", "PCA", "Peak Detection"],

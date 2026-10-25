@@ -221,7 +221,165 @@ export function SampadLogo() {
 }
 
 
+// Pixel art stored as horizontal runs: [x, y, width] on a 32×32 grid.
+type Run = [number, number, number]
+
+function PixelRuns({
+  runs,
+  label,
+  fill = "currentColor",
+}: {
+  runs: Run[]
+  label: string
+  fill?: string
+}) {
+  return (
+    <svg
+      width="32"
+      height="32"
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      shapeRendering="crispEdges"
+      role="img"
+      aria-label={label}
+    >
+      {runs.map(([x, y, w]) => (
+        <rect key={`${x}-${y}`} x={x} y={y} width={w} height="1" fill={fill} />
+      ))}
+    </svg>
+  )
+}
+
+// Oak, crowned shield with two open books and the beaver, motto ribbon
+const UOFT_RUNS: Run[] = [
+  [11,0,10], [9,1,14], [8,2,2], [11,2,10], [22,2,2], [8,3,16], [8,4,3], [12,4,8], [21,4,3],
+  [9,5,14], [11,6,2], [14,6,4], [19,6,2], [15,7,2], [14,8,4], [7,9,18], [7,10,1], [12,10,1],
+  [15,10,2], [19,10,1], [24,10,1], [7,11,1], [12,11,2], [15,11,2], [18,11,2], [24,11,1],
+  [7,12,1], [12,12,8], [24,12,1], [7,13,18], [7,14,2], [11,14,2], [15,14,2], [19,14,2],
+  [23,14,2], [7,15,2], [11,15,2], [15,15,2], [19,15,2], [23,15,2], [7,16,2], [11,16,2],
+  [15,16,2], [19,16,2], [23,16,2], [7,17,18], [7,18,1], [24,18,1], [7,19,1], [18,19,2],
+  [24,19,1], [7,20,1], [12,20,10], [24,20,1], [8,21,1], [10,21,11], [23,21,1], [8,22,1],
+  [10,22,10], [23,22,1], [9,23,1], [14,23,1], [18,23,1], [22,23,1], [10,24,2], [20,24,2],
+  [12,25,2], [18,25,2], [14,26,4], [6,28,20], [5,29,1], [8,29,1], [10,29,1], [12,29,1],
+  [14,29,1], [17,29,1], [19,29,1], [21,29,1], [23,29,1], [26,29,1], [6,30,20],
+]
+
+export function UofTLogo() {
+  return <PixelRuns runs={UOFT_RUNS} label="University of Toronto logo" />
+}
+
+// The AMACSS chevron "A"
+const AMACSS_RUNS: Run[] = [
+  [15,2,2], [15,3,2], [14,4,4], [14,5,4], [13,6,6], [13,7,7], [12,8,8], [11,9,10], [11,10,10],
+  [10,11,12], [10,12,12], [9,13,14], [9,14,14], [8,15,7], [17,15,7], [7,16,8], [17,16,8],
+  [7,17,7], [18,17,7], [6,18,8], [18,18,8], [6,19,7], [19,19,7], [5,20,8], [19,20,8], [5,21,7],
+  [20,21,7], [4,22,8], [20,22,8], [4,23,7], [21,23,7], [3,24,7], [22,24,7], [2,25,8], [22,25,8],
+  [2,26,7], [23,26,7], [1,27,8], [23,27,8], [1,28,7], [24,28,7], [1,29,7], [24,29,7],
+]
+
+export function AmacssLogo() {
+  return <PixelRuns runs={AMACSS_RUNS} label="AMACSS logo" />
+}
+
+// Ring, light bulb holding a brain, side monitors and the desk line
+const CREATE_RUNS: Run[] = [
+  [14,0,4], [10,1,12], [8,2,6], [18,2,6], [7,3,4], [21,3,4], [5,4,4], [23,4,4], [4,5,3],
+  [25,5,3], [4,6,2], [7,6,1], [13,6,6], [23,6,1], [26,6,2], [3,7,2], [8,7,1], [12,7,3],
+  [17,7,3], [24,7,1], [27,7,2], [2,8,3], [11,8,2], [19,8,2], [27,8,3], [2,9,2], [10,9,5],
+  [17,9,5], [28,9,2], [1,10,3], [10,10,5], [17,10,5], [28,10,3], [1,11,2], [10,11,4], [18,11,4],
+  [29,11,2], [1,12,2], [5,12,2], [10,12,1], [12,12,3], [17,12,3], [21,12,1], [25,12,2],
+  [29,12,2], [1,13,2], [10,13,2], [13,13,2], [17,13,2], [20,13,2], [29,13,2], [0,14,2],
+  [10,14,2], [20,14,2], [30,14,2], [0,15,7], [11,15,2], [19,15,2], [25,15,7], [0,16,1],
+  [6,16,1], [12,16,3], [17,16,3], [25,16,1], [31,16,1], [0,17,1], [6,17,1], [12,17,8],
+  [25,17,1], [31,17,1], [0,18,1], [6,18,1], [25,18,1], [31,18,1], [0,19,1], [6,19,1], [13,19,6],
+  [25,19,1], [31,19,1], [0,20,7], [25,20,7], [3,21,1], [13,21,6], [28,21,1], [2,22,3],
+  [27,22,3], [2,23,3], [14,23,4], [27,23,3], [3,24,2], [27,24,2], [4,25,2], [7,25,18],
+  [26,25,2], [4,26,3], [25,26,3], [5,27,4], [10,27,1], [13,27,1], [16,27,1], [19,27,1],
+  [22,27,5], [7,28,4], [21,28,4], [8,29,6], [18,29,6], [10,30,12], [14,31,4],
+]
+
+export function CreateLogo() {
+  return <PixelRuns runs={CREATE_RUNS} label="CREATE UofT logo" />
+}
+
+
 // ─── Project logos ────────────────────────────────────────────────────────────
+export function AirSoapLogo() {
+  return (
+    <svg
+      width="32"
+      height="32"
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      shapeRendering="crispEdges"
+    >
+      {/* Microphone capsule */}
+      <rect x="11" y="4" width="8" height="2" fill="#00f5d4" />
+      <rect x="10" y="6" width="10" height="12" fill="#00f5d4" />
+      <rect x="11" y="18" width="8" height="2" fill="#00f5d4" />
+
+      {/* Grille */}
+      <rect x="12" y="8" width="6" height="1" fill="#07090f" />
+      <rect x="12" y="11" width="6" height="1" fill="#07090f" />
+      <rect x="12" y="14" width="6" height="1" fill="#07090f" />
+
+      {/* Stand */}
+      <rect x="6" y="13" width="2" height="5" fill="#00f5d4" />
+      <rect x="22" y="13" width="2" height="5" fill="#00f5d4" />
+      <rect x="7" y="18" width="2" height="2" fill="#00f5d4" />
+      <rect x="21" y="18" width="2" height="2" fill="#00f5d4" />
+      <rect x="9" y="20" width="12" height="2" fill="#00f5d4" />
+      <rect x="14" y="22" width="2" height="4" fill="#00f5d4" />
+      <rect x="9" y="26" width="12" height="2" fill="#00f5d4" />
+
+      {/* Medical cross */}
+      <rect x="26" y="2" width="2" height="6" fill="#f72585" />
+      <rect x="24" y="4" width="6" height="2" fill="#f72585" />
+    </svg>
+  )
+}
+
+export function NewPortfolioLogo() {
+  // Classic 11×8 invader sprite at 2× scale
+  const sprite = [
+    "..#.....#..",
+    "...#...#...",
+    "..#######..",
+    ".##.###.##.",
+    "###########",
+    "#.#######.#",
+    "#.#.....#.#",
+    "...##.##...",
+  ]
+  return (
+    <svg
+      width="32"
+      height="32"
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      shapeRendering="crispEdges"
+    >
+      {sprite.flatMap((row, y) =>
+        [...row].map((ch, x) =>
+          ch === "#" ? (
+            <rect
+              key={`${x}-${y}`}
+              x={5 + x * 2}
+              y={8 + y * 2}
+              width="2"
+              height="2"
+              fill="#ffb700"
+            />
+          ) : null,
+        ),
+      )}
+    </svg>
+  )
+}
+
 export function PortfolioLogo() {
   return (
     <svg
@@ -474,6 +632,9 @@ export const companyLogos: Record<
   string,
   () => React.ReactElement
 > = {
+  "University of Toronto": UofTLogo,
+  "CREATE UofT": CreateLogo,
+  "The Association of Mathematical and Computer Science Students (AMACSS)": AmacssLogo,
   "Ontario Public Service (OPS)": OpsLogo,
   "Google Developer Group (GDG)": GdgLogo,
   "OutlierAI": OutlierLogo,
@@ -484,6 +645,8 @@ export const projectLogos: Record<
   string,
   () => React.ReactElement
 > = {
+  "AirSOAP": AirSoapLogo,
+  "New Personal Portfolio": NewPortfolioLogo,
   "Personal Portfolio": PortfolioLogo,
   "Smart Air": SmartAirLogo,
   "Expense Tracker Agent": ExpenseTrackerLogo,
