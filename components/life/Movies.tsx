@@ -13,7 +13,39 @@ function Rating({ value }: { value?: number }) {
   )
 }
 
-export function Movies({ films }: { films: WatchedFilm[] | null }) {
+type PosterItem = { key: string; title: string; year?: number; poster?: string; url?: string }
+
+/** A row of posters with title and year underneath (titles hide on phones). */
+function PosterRow({ films, className }: { films: PosterItem[]; className: string }) {
+  return (
+    <ul className={`mt-6 grid gap-3 sm:gap-4 ${className}`}>
+      {films.map((f) => {
+        const body = (
+          <>
+            <Poster src={f.poster} title={f.title} sizes="(min-width: 768px) 10rem, 30vw" />
+            <p className="mt-2.5 hidden leading-snug font-medium text-ink transition-colors group-hover:text-accent sm:block">
+              {f.title}
+              {f.year && <span className="mono ml-1.5 font-normal text-muted">{f.year}</span>}
+            </p>
+          </>
+        )
+        return (
+          <li key={f.key}>
+            {f.url ? (
+              <a href={f.url} target="_blank" rel="noreferrer" className="group block" aria-label={f.title}>
+                {body}
+              </a>
+            ) : (
+              <div className="group">{body}</div>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+export function Movies({ films, fiveStars }: { films: WatchedFilm[] | null; fiveStars: WatchedFilm[] }) {
   return (
     <>
       <div className="mt-12">
@@ -67,31 +99,22 @@ export function Movies({ films }: { films: WatchedFilm[] | null }) {
       <div className="mt-16">
         <h3 className="text-[1.125rem] tracking-[-0.015em]">Favourites</h3>
         <p className="mt-1 text-muted">The four I&apos;d defend in an argument.</p>
-        <ul className="mt-6 grid max-w-[44rem] grid-cols-4 gap-3 sm:gap-4">
-          {favorites.map((f, i) => {
-            const body = (
-              <>
-                <Poster src={f.poster} title={f.title} sizes="(min-width: 768px) 10rem, 22vw" />
-                <p className="mt-2.5 hidden leading-snug font-medium text-ink sm:block">
-                  {f.title}
-                  {f.year && <span className="mono ml-1.5 font-normal text-muted">{f.year}</span>}
-                </p>
-              </>
-            )
-            return (
-              <li key={`${f.title}-${i}`}>
-                {f.url ? (
-                  <a href={f.url} target="_blank" rel="noreferrer" className="group block" aria-label={f.title}>
-                    {body}
-                  </a>
-                ) : (
-                  <div className="group">{body}</div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
+        <PosterRow
+          className="max-w-[44rem] grid-cols-4"
+          films={favorites.map((f) => ({ key: f.title, title: f.title, year: f.year, poster: f.poster, url: f.url }))}
+        />
       </div>
+
+      {fiveStars.length > 0 && (
+        <div className="mt-16">
+          <h3 className="text-[1.125rem] tracking-[-0.015em]">Recent five-star films</h3>
+          <p className="mt-1 text-muted">Synced from my Letterboxd diary, so this one keeps itself up to date.</p>
+          <PosterRow
+            className="grid-cols-3 sm:grid-cols-6"
+            films={fiveStars.map((f) => ({ key: f.id, title: f.title, year: f.year, poster: f.poster, url: f.url }))}
+          />
+        </div>
+      )}
     </>
   )
 }

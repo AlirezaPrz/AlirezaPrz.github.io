@@ -30,10 +30,10 @@ interface RssItem {
 }
 
 /**
- * Recently watched films from the public Letterboxd RSS feed.
- * Cached for an hour (ISR). Returns null if the feed can't be read.
+ * Every diary entry in the public Letterboxd RSS feed (the latest 50), newest
+ * first. Cached for an hour (ISR). Returns null if the feed can't be read.
  */
-export async function getRecentlyWatched(limit = 6): Promise<WatchedFilm[] | null> {
+export async function getDiary(): Promise<WatchedFilm[] | null> {
   const url = `https://letterboxd.com/${letterboxdUser()}/rss/`
   try {
     const res = await fetch(url, {
@@ -53,7 +53,6 @@ export async function getRecentlyWatched(limit = 6): Promise<WatchedFilm[] | nul
       items
         // The feed also contains lists and reviews without a film; keep diary entries only
         .filter((i) => i["letterboxd:filmTitle"] != null)
-        .slice(0, limit)
         .map((i) => {
           const guid = typeof i.guid === "object" ? i.guid["#text"] : i.guid
           const poster = i.description?.match(/<img[^>]+src="([^"]+)"/)?.[1]
@@ -74,4 +73,21 @@ export async function getRecentlyWatched(limit = 6): Promise<WatchedFilm[] | nul
   } catch {
     return null
   }
+}
+
+/**
+ * The most recent films I rated five stars, one entry per film (rewatches
+ * collapse), skipping any title in `exclude` (e.g. the hand-picked favourites).
+ */
+export function recentFiveStars(diary: WatchedFilm[], exclude: string[] = [], limit = 6): WatchedFilm[] {
+  const seen = new Set(exclude.map((t) => t.toLowerCase()))
+  const out: WatchedFilm[] = []
+  for (const film of diary) {
+    const key = film.title.toLowerCase()
+    if (film.rating !== 5 || seen.has(key)) continue
+    seen.add(key)
+    out.push(film)
+    if (out.length === limit) break
+  }
+  return out
 }

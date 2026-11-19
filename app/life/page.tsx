@@ -8,7 +8,8 @@ import { TopTracks } from "@/components/life/TopTracks"
 import { music } from "@/data/music"
 import { site } from "@/data/site"
 import { getTopTracks } from "@/lib/lastfm"
-import { getRecentlyWatched } from "@/lib/letterboxd"
+import { favorites } from "@/data/favorites"
+import { getDiary, recentFiveStars } from "@/lib/letterboxd"
 
 export const metadata: Metadata = {
   title: "Life Outside",
@@ -31,7 +32,10 @@ function SectionHead({ id, title, children }: { id: string; title: string; child
 }
 
 export default async function LifePage() {
-  const [films, topTracks] = await Promise.all([getRecentlyWatched(6), getTopTracks(10)])
+  const [diary, topTracks] = await Promise.all([getDiary(), getTopTracks(10)])
+  const films = diary?.slice(0, 6) ?? null
+  // synced from the diary; skips films already in the hand-picked favourites
+  const fiveStars = diary ? recentFiveStars(diary, favorites.map((f) => f.title)) : []
 
   return (
     <>
@@ -55,7 +59,7 @@ export default async function LifePage() {
           </a>
           , which is mostly a way to keep a record of my questionable star ratings. This updates on its own.
         </SectionHead>
-        <Movies films={films} />
+        <Movies films={films} fiveStars={fiveStars} />
       </section>
 
       <section id="music" aria-labelledby="music-title" className="mt-28 scroll-mt-8 md:mt-36">
