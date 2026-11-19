@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { ExperienceLedger } from "@/components/ExperienceLedger"
 import { Icon } from "@/components/Icon"
@@ -6,6 +7,11 @@ import { Portrait } from "@/components/Portrait"
 import { experience } from "@/data/experience"
 import { site } from "@/data/site"
 import { primaryButton } from "@/components/ui"
+
+export const metadata: Metadata = {
+  // UofT Webring ownership check: rendered as <meta name="uoft-webring" content="…"> in this page's <head>
+  other: { "uoft-webring": "cqxWBpVGfc-WIWRDseahEp2G5iCyui0KPgBxhdyzdok" },
+}
 
 export default function AboutPage() {
   return (
