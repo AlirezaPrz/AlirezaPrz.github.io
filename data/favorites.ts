@@ -3,7 +3,7 @@ import type { FavoriteFilm } from "./types"
 /**
  * My four all-time favourites, shown under "Favourites" on Life Outside.
  *
- * Posters come from Wikipedia. To use Letterboxd's instead, open the film on
+ * Posters come from Letterboxd or Wikipedia. To use Letterboxd's instead, open the film on
  * Letterboxd, right-click the poster → Copy Image Address, and paste it as
  * `poster` (a.ltrbxd.com URLs work out of the box).
  */
@@ -21,15 +21,15 @@ export const favorites: FavoriteFilm[] = [
     url: "https://letterboxd.com/film/the-grand-budapest-hotel/",
   },
   {
-    title: "The Intouchables",
-    year: 2011,
-    poster: "https://upload.wikimedia.org/wikipedia/en/9/93/The_Intouchables.jpg",
-    url: "https://letterboxd.com/film/the-intouchables/",
+    title: "Paris, Texas",
+    year: 1984,
+    poster: "https://a.ltrbxd.com/resized/film-poster/5/1/4/6/9/51469-paris-texas-0-600-0-900-crop.jpg?v=c8f2743612",
+    url: "https://letterboxd.com/film/paris-texas/",
   },
   {
-    title: "Grave of the Fireflies",
-    year: 1988,
-    poster: "https://upload.wikimedia.org/wikipedia/en/a/a5/Grave_of_the_Fireflies_Japanese_poster.jpg",
-    url: "https://letterboxd.com/film/grave-of-the-fireflies/",
+    title: "A Separation",
+    year: 2011,
+    poster: "https://a.ltrbxd.com/resized/film-poster/6/3/4/5/6345-a-separation-0-600-0-900-crop.jpg?v=dca05d4c0a",
+    url: "https://letterboxd.com/film/a-separation/",
   },
 ]
