@@ -1,5 +1,6 @@
 import { site } from "@/data/site"
 import { Icon } from "./Icon"
+import { WebRing } from "./WebRing"
 
 export function Footer() {
   const year = new Date().getFullYear()
@@ -8,10 +9,13 @@ export function Footer() {
       <p>
         © {year} {site.name}
       </p>
-      <a href="#main" className="link-quiet inline-flex w-fit items-center gap-1.5">
-        Back to top
-        <Icon name="arrowUp" size={13} />
-      </a>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <WebRing />
+        <a href="#main" className="link-quiet inline-flex w-fit items-center gap-1.5">
+          Back to top
+          <Icon name="arrowUp" size={13} />
+        </a>
+      </div>
     </footer>
   )
 }
